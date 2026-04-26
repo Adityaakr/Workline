@@ -134,6 +134,14 @@ export async function ensureMinimumBalance(opts: {
       args: [to, deficit],
     });
     usdcMinted = deficit;
+    // CRITICAL: wait for the mint to be mined before returning. If we
+    // skip this, the next user-signed tx (e.g. swap on the settle page)
+    // gets simulated by World App against an RPC view that still shows
+    // balance = 0 → simulation_failed → blank "Receive 0" popup.
+    await fxPublicClient.waitForTransactionReceipt({
+      hash: usdcTxHash,
+      confirmations: 1,
+    });
     usdcBalance += deficit;
   }
 
