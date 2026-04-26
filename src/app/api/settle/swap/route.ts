@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import type { Address } from "viem";
 import { isAddress } from "viem";
+import { sponsoredSwapUsdcToWmxn } from "@/lib/fx-server";
 import { tokenUnits } from "@/lib/fx-public-client";
+import { FX_EXPLORER_BASE } from "@/lib/fx-contracts";
 
 export const runtime = "nodejs";
 
@@ -48,12 +50,24 @@ export async function POST(req: Request) {
       ? BigInt(Math.round(slippageBpsNum))
       : BigInt(50);
 
-  // sponsored swap wired up in the next commit
-  void recipient;
-  void amountIn;
-  void slippageBps;
-  return NextResponse.json(
-    { error: "sponsored swap not yet wired" },
-    { status: 501 },
-  );
+  try {
+    const result = await sponsoredSwapUsdcToWmxn({
+      recipient,
+      amountIn,
+      slippageBps,
+    });
+    return NextResponse.json({
+      ok: true,
+      recipient,
+      swapTxHash: result.swapTxHash,
+      approveTxHash: result.approveTxHash,
+      amountIn: result.amountIn.toString(),
+      amountOut: result.amountOut.toString(),
+      minOut: result.minOut.toString(),
+      explorerUrl: `${FX_EXPLORER_BASE}/tx/${result.swapTxHash}`,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "sponsored swap failed";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }
