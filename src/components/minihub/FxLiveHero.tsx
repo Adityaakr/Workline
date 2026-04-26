@@ -30,6 +30,7 @@ export function FxLiveHero() {
   const [pickedUsdc, setPickedUsdc] = useState<number>(100);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -86,6 +87,7 @@ export function FxLiveHero() {
     }
     setSubmitting(true);
     setError(null);
+    setErrorCode(null);
     setFeedback(null);
     try {
       await sendAddLiquidity({
@@ -102,6 +104,11 @@ export function FxLiveHero() {
       setTimeout(refresh, 2500);
     } catch (e) {
       setError(e instanceof Error ? e.message : "addLiquidity failed");
+      const code =
+        e && typeof e === "object" && "code" in e
+          ? ((e as { code?: string }).code ?? null)
+          : null;
+      setErrorCode(code);
     } finally {
       setSubmitting(false);
     }
