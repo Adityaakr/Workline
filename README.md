@@ -42,56 +42,37 @@ Stablecoins are large enough to power real payouts. The rails exist. The payout 
 
 Workline FX settles global work into local money, instantly, for verified humans — in one flow, inside one Mini App.
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                         WORKLINE FX — SETTLEMENT PIPELINE                       │
-│                                                                                 │
-│  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐  │
-│  │  CLIENT   │    │  PAYOUT   │    │  VERIFY   │    │  CHOOSE   │    │ SETTLED  │  │
-│  │ APPROVES  │───▶│ ARRIVES   │───▶│ WORLD ID  │───▶│  LOCAL    │───▶│  LOCAL   │  │
-│  │   WORK    │    │ IN USDC   │    │           │    │ CURRENCY  │    │  MONEY   │  │
-│  └──────────┘    └──────────┘    └──────────┘    └──────────┘    └──────────┘  │
-│                                                                                 │
-│       ↑               ↑               ↑               ↑               ↑        │
-│   Milestone       World Chain      Proof of        wMXN/wBRL       Rebate      │
-│   complete        stablecoin       Human           wINR/USDC       applied     │
-└─────────────────────────────────────────────────────────────────────────────────┘
+### Settlement Pipeline
+
+```mermaid
+flowchart LR
+    A["Client\nApproves\nWork"] -->|Milestone\ncomplete| B["Payout\nArrives\nin USDC"]
+    B -->|World Chain\nstablecoin| C["Verify\nWorld ID"]
+    C -->|Proof of\nHuman| D["Choose\nLocal\nCurrency"]
+    D -->|wMXN / wBRL\nwINR / USDC| E["Settled\nLocal\nMoney"]
+    E -->|Rebate\napplied| F(("Done"))
 ```
 
-### Step-by-Step
+### Step-by-Step Flow
 
-```
-    ╭─────────────────────────────────────────────────────────╮
-    │                                                         │
-    │   1 ─── WORK GETS APPROVED                              │
-    │         Client approves a milestone or payout            │
-    │         through Workline.                                │
-    │                                                         │
-    │   2 ─── XMTP SENDS PAYOUT CONTEXT                      │
-    │         Worker receives a secure E2E encrypted           │
-    │         message with amount, client, and reference.      │
-    │                                                         │
-    │   3 ─── WORKER VERIFIES WITH WORLD ID                   │
-    │         Verified humans unlock better payout             │
-    │         economics and rebate eligibility.                │
-    │                                                         │
-    │   4 ─── PAYOUT ARRIVES IN USDC                          │
-    │         Client funds the payout in stablecoins           │
-    │         on World Chain.                                  │
-    │                                                         │
-    │   5 ─── WORKER CHOOSES LOCAL SETTLEMENT                 │
-    │         Options: USDC, wMXN, wBRL, wINR, or             │
-    │         other supported routes.                          │
-    │                                                         │
-    │   6 ─── REBATE LOGIC APPLIES                            │
-    │         Verified-human route applies reduced fee         │
-    │         via Uniswap v4 hook architecture.                │
-    │                                                         │
-    │   7 ─── WORKER RECEIVES LOCAL STABLECOIN                │
-    │         Payout settles into money the worker             │
-    │         can actually use.                                │
-    │                                                         │
-    ╰─────────────────────────────────────────────────────────╯
+```mermaid
+flowchart TD
+    S1["1. Work Gets Approved"]:::step --> S2["2. XMTP Sends Payout Context"]:::step
+    S2 --> S3["3. Worker Verifies with World ID"]:::step
+    S3 --> S4["4. Payout Arrives in USDC"]:::step
+    S4 --> S5["5. Worker Chooses Local Settlement"]:::step
+    S5 --> S6["6. Rebate Logic Applies"]:::step
+    S6 --> S7["7. Worker Receives Local Stablecoin"]:::step
+
+    S1 -.- N1["Client approves a milestone\nor payout through Workline"]
+    S2 -.- N2["Worker receives E2E encrypted\nmessage with amount and reference"]
+    S3 -.- N3["Verified humans unlock better\npayout economics and rebates"]
+    S4 -.- N4["Client funds the payout in\nstablecoins on World Chain"]
+    S5 -.- N5["Options: USDC, wMXN,\nwBRL, wINR, or others"]
+    S6 -.- N6["Uniswap v4 hook applies\nreduced fee for verified humans"]
+    S7 -.- N7["Payout settles into money\nthe worker can actually use"]
+
+    classDef step stroke-width:2px
 ```
 
 ---
@@ -100,190 +81,140 @@ Workline FX settles global work into local money, instantly, for verified humans
 
 ### System Overview
 
-```
- ┌──────────────────────────────────────────────────────────────────────────────┐
- │                              WORLD APP                                       │
- │  ┌────────────────────────────────────────────────────────────────────────┐  │
- │  │                     WORKLINE FX MINI APP                               │  │
- │  │                                                                        │  │
- │  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐    │  │
- │  │  │  HOME   │  │  WORK   │  │ SETTLE  │  │   FX    │  │ ACCOUNT │    │  │
- │  │  │Dashboard│  │Agreements│  │ Payout  │  │ Pools & │  │World ID │    │  │
- │  │  │Balance  │  │  Chat   │  │  Flow   │  │ Routes  │  │ Wallet  │    │  │
- │  │  └────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘    │  │
- │  │       │             │            │             │            │          │  │
- │  └───────┼─────────────┼────────────┼─────────────┼────────────┼──────────┘  │
- │          │             │            │             │            │              │
- └──────────┼─────────────┼────────────┼─────────────┼────────────┼──────────────┘
-            │             │            │             │            │
-            ▼             ▼            ▼             ▼            ▼
- ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────────────────┐
- │   MiniKit    │ │   XMTP v3    │ │ World Chain  │ │     World ID (IDKit)     │
- │  Wallet Auth │ │  Browser SDK │ │  Onchain Tx  │ │   Proof of Human         │
- │  Pay / Send  │ │  MLS E2E     │ │  WLD / USDC  │ │   Verified Human Check   │
- └──────────────┘ └──────────────┘ └──────────────┘ └──────────────────────────┘
-                                          │
-                                          ▼
-                              ┌──────────────────────┐
-                              │   Uniswap v4 Hooks   │
-                              │   Rebate Logic for    │
-                              │   Verified Humans     │
-                              └──────────────────────┘
+```mermaid
+graph TB
+    subgraph WorldApp["World App"]
+        subgraph MiniApp["Workline FX Mini App"]
+            Home["Home\nDashboard & Balance"]
+            Work["Work\nAgreements & Chat"]
+            Settle["Settle\nPayout Flow"]
+            FX["FX\nPools & Routes"]
+            Account["Account\nWorld ID & Wallet"]
+        end
+    end
+
+    Home --> MiniKit["MiniKit\nWallet Auth\nPay / Send"]
+    Work --> XMTP["XMTP v3\nBrowser SDK\nMLS E2E"]
+    Settle --> WorldChain["World Chain\nOnchain Tx\nWLD / USDC"]
+    FX --> UniswapHook["Uniswap v4\nRebate Hook\nVerified Human Logic"]
+    Account --> WorldID["World ID\nIDKit\nProof of Human"]
+
+    WorldChain --> UniswapHook
 ```
 
-### Settlement Flow (Detailed)
+### Settlement Flow
 
-```
- ┌───────────────┐
- │  Worker opens  │
- │  /settle page  │
- └───────┬───────┘
-         │
-         ▼
- ┌───────────────┐     ┌───────────────────────────────────┐
- │ Ready payout?  │────▶│  Show payout: amount, sender,     │
- │   (from data)  │ yes │  purpose, currency options         │
- └───────┬───────┘     └─────────────────┬─────────────────┘
-         │ no                             │
-         ▼                                ▼
- ┌───────────────┐     ┌───────────────────────────────────┐
- │  "All caught   │     │  Worker selects currency           │
- │    up" state   │     │  (wMXN / wBRL / wINR / USDC)      │
- └───────────────┘     └─────────────────┬─────────────────┘
-                                          │
-                                          ▼
-                       ┌───────────────────────────────────┐
-                       │  Quote engine computes:            │
-                       │  • FX rate                         │
-                       │  • Standard fee (30 bps)           │
-                       │  • Verified rebate (5 bps)         │
-                       │  • Net received amount             │
-                       └─────────────────┬─────────────────┘
-                                          │
-                                          ▼
-                       ┌───────────────────────────────────┐
-                       │  AI Smart Split suggestion:        │
-                       │  "Convert 60% local, keep 40%      │
-                       │   in stables"                      │
-                       └─────────────────┬─────────────────┘
-                                          │
-                            ┌─────────────┴─────────────┐
-                            │                           │
-                            ▼                           ▼
-                  ┌──────────────────┐       ┌──────────────────┐
-                  │   IN WORLD APP   │       │  WEB (FALLBACK)  │
-                  │                  │       │                  │
-                  │ MiniKit.send     │       │  POST /api/settle│
-                  │ Transaction()    │       │  Mock response   │
-                  │ Real WLD tx      │       │                  │
-                  └────────┬─────────┘       └────────┬─────────┘
-                           │                          │
-                           ▼                          ▼
-                  ┌──────────────────┐       ┌──────────────────┐
-                  │ Poll userOp      │       │ Navigate to      │
-                  │ receipt           │       │ /settle/success  │
-                  │ Get tx hash      │       │                  │
-                  └────────┬─────────┘       └──────────────────┘
-                           │
-                           ▼
-                  ┌──────────────────┐
-                  │ /settle/success  │
-                  │ Show tx hash,    │
-                  │ explorer link,   │
-                  │ rebate savings   │
-                  └──────────────────┘
+```mermaid
+flowchart TD
+    Start["Worker opens /settle"] --> CheckPayout{"Ready\npayout?"}
+
+    CheckPayout -->|No| Empty["All caught up"]
+    CheckPayout -->|Yes| ShowPayout["Show payout:\namount, sender, purpose"]
+
+    ShowPayout --> SelectCurrency["Worker selects currency\nwMXN / wBRL / wINR / USDC"]
+
+    SelectCurrency --> QuoteEngine["Quote Engine Computes:\n- FX rate\n- Standard fee: 30 bps\n- Verified rebate: 5 bps\n- Net received amount"]
+
+    QuoteEngine --> SmartSplit["AI Smart Split Suggestion:\nConvert 60% local\nKeep 40% in stables"]
+
+    SmartSplit --> EnvCheck{"Running in\nWorld App?"}
+
+    EnvCheck -->|Yes| Onchain["MiniKit.sendTransaction\nReal WLD transfer\non World Chain"]
+    EnvCheck -->|No| MockAPI["POST /api/settle\nMock settlement\nresponse"]
+
+    Onchain --> PollReceipt["Poll userOp receipt\nGet transaction hash"]
+    PollReceipt --> Success["Settlement Success\nTx hash + Explorer link\nRebate savings shown"]
+
+    MockAPI --> Success
 ```
 
 ### Verified Human Rebate Hook
 
-```
- ┌────────────────────────────────────────────────────────────────────────┐
- │                    UNISWAP V4 REBATE HOOK ARCHITECTURE                │
- │                                                                        │
- │  ┌──────────┐    ┌──────────────┐    ┌──────────────┐    ┌─────────┐  │
- │  │  Worker   │    │   Workline   │    │  Uniswap v4  │    │  Pool   │  │
- │  │ verified  │───▶│   Router     │───▶│    Hook      │───▶│  Swap   │  │
- │  │ via World │    │  checks      │    │ beforeSwap() │    │ executes│  │
- │  │   ID      │    │ eligibility  │    │              │    │         │  │
- │  └──────────┘    └──────────────┘    └──────┬───────┘    └─────────┘  │
- │                                              │                         │
- │                                              ▼                         │
- │                                    ┌──────────────────┐                │
- │                                    │  IF verified:     │                │
- │                                    │   fee = 5 bps     │                │
- │                                    │  ELSE:            │                │
- │                                    │   fee = 30 bps    │                │
- │                                    │                   │                │
- │                                    │  emit Rebate      │                │
- │                                    │  Applied event    │                │
- │                                    └──────────────────┘                │
- └────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    Worker["Worker verified\nvia World ID"] --> Router["Workline Router\nchecks eligibility"]
+    Router --> Hook["Uniswap v4 Hook\nbeforeSwap()"]
+    Hook --> Check{"Verified\nHuman?"}
 
- The hook does not make the swap more magical. It makes payout routing
- programmable: verified recipients receive different fee treatment
- than anonymous wallets.
+    Check -->|Yes| LowFee["Fee: 5 bps\nRebate applied"]
+    Check -->|No| StdFee["Fee: 30 bps\nStandard pricing"]
+
+    LowFee --> Swap["Pool executes swap"]
+    StdFee --> Swap
+    Swap --> Event["emit RebateApplied\nevent for tracking"]
 ```
+
+> The hook does not make the swap more magical. It makes payout routing programmable: verified recipients receive different fee treatment than anonymous wallets.
 
 ### Rebate Economics
 
 The rebate is not charity. It is **risk-based pricing**.
 
-```
- ┌─────────────────────────────────────────────────────────────┐
- │            $1,000 USDC  ──▶  wMXN                           │
- │                                                             │
- │  ┌─────────────────────────┐  ┌──────────────────────────┐  │
- │  │    STANDARD WALLET      │  │    VERIFIED HUMAN        │  │
- │  │                         │  │                          │  │
- │  │    Fee:     0.30%       │  │    Fee:     0.05%        │  │
- │  │    Cost:    $3.00       │  │    Cost:    $0.50        │  │
- │  │    Savings: —           │  │    Savings: $2.50 ✓      │  │
- │  │                         │  │                          │  │
- │  │    Higher risk.         │  │    Lower risk.           │  │
- │  │    Sybil-prone.         │  │    World ID verified.    │  │
- │  │    Standard pricing.    │  │    Risk-adjusted rebate. │  │
- │  └─────────────────────────┘  └──────────────────────────┘  │
- │                                                             │
- │  Verified humans are cheaper to serve. The rebate is the    │
- │  price difference between anonymous and verified wallets.   │
- └─────────────────────────────────────────────────────────────┘
+```mermaid
+graph LR
+    subgraph Input["$1,000 USDC → wMXN"]
+        direction TB
+    end
+
+    subgraph Standard["Standard Wallet"]
+        direction TB
+        SF["Fee: 0.30%"]
+        SC["Cost: $3.00"]
+        SS["Savings: --"]
+        SR["Higher risk\nSybil-prone\nStandard pricing"]
+    end
+
+    subgraph Verified["Verified Human"]
+        direction TB
+        VF["Fee: 0.05%"]
+        VC["Cost: $0.50"]
+        VS["Savings: $2.50"]
+        VR["Lower risk\nWorld ID verified\nRisk-adjusted rebate"]
+    end
+
+    Input --> Standard
+    Input --> Verified
 ```
 
 ### Smart Split — AI-Guided Payout Allocation
 
+```mermaid
+pie title Incoming Payout: 1,000 USDC
+    "Convert locally (620 USDC → wMXN)" : 62
+    "Keep stable (280 USDC savings)" : 28
+    "Reserve (100 USDC bills)" : 10
 ```
- Incoming payout: 1,000 USDC
- ┌──────────────────────────────────────────────────────────────┐
- │                                                              │
- │  ████████████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │
- │  ├─── Convert locally ────┤├── Keep stable ──┤├─ Reserve ─┤  │
- │       620 USDC → wMXN          280 USDC         100 USDC    │
- │       (for expenses)           (savings)        (bills)      │
- │                                                              │
- └──────────────────────────────────────────────────────────────┘
 
- Convert what you need locally. Keep the rest stable.
-```
+> Convert what you need locally. Keep the rest stable.
 
 ### XMTP Messaging Architecture
 
-```
- ┌─────────────────────────────────────────────────────────────┐
- │                    XMTP v3 (MLS) CHAT                       │
- │                                                             │
- │  ┌───────────┐          XMTP Network          ┌──────────┐ │
- │  │  Workline  │    ┌──────────────────┐        │  Client   │ │
- │  │  Mini App  │───▶│  E2E Encrypted   │◀───────│ Converse  │ │
- │  │           │    │  DM via MLS      │        │ or XMTP   │ │
- │  │ Ephemeral │    │                  │        │   app     │ │
- │  │  keypair  │    │  Dev network     │        │           │ │
- │  └───────────┘    └──────────────────┘        └──────────┘ │
- │                                                             │
- │  • Real E2E encrypted messages via @xmtp/browser-sdk       │
- │  • Graceful fallback to local chat with auto-replies        │
- │  • Messages persist in localStorage across sessions         │
- │  • System messages (group events) filtered automatically    │
- └─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph WorklineMiniApp["Workline Mini App"]
+        EphKey["Ephemeral\nkeypair"]
+        ChatUI["Chat UI\nE2E Encrypted"]
+    end
+
+    subgraph XMTPNetwork["XMTP Network"]
+        MLS["MLS Protocol\nDev Network"]
+    end
+
+    subgraph ClientSide["Client"]
+        Converse["Converse App\nor any XMTP client"]
+    end
+
+    EphKey --> ChatUI
+    ChatUI -->|"Send DM\n(encrypted)"| MLS
+    MLS -->|"Deliver DM\n(encrypted)"| Converse
+    Converse -->|"Reply"| MLS
+    MLS -->|"Poll every 4s"| ChatUI
+
+    subgraph Fallback["Fallback Mode"]
+        Local["Local chat\nwith auto-replies\nif XMTP unavailable"]
+    end
+
+    ChatUI -.->|"Connection\nfailed"| Local
 ```
 
 ---
@@ -292,28 +223,32 @@ The rebate is not charity. It is **risk-based pricing**.
 
 Most teams hit one lane. Workline FX stacks four into a single product where each one is necessary.
 
-```
- ┌────────────────────────────┐  ┌────────────────────────────┐
- │   STABLECOINS / FX         │  │   PROOF OF HUMAN           │
- │                            │  │                            │
- │   USDC into local          │  │   Verified humans unlock   │
- │   stablecoins. World       │  │   better economics. Not    │
- │   Chain supports local     │  │   login decoration — the   │
- │   stablecoin assets and    │  │   economic basis for       │
- │   Pay handles WLD and      │  │   risk-adjusted payout     │
- │   stablecoins natively.    │  │   pricing.                 │
- │                            │  │                            │
- └────────────────────────────┘  └────────────────────────────┘
- ┌────────────────────────────┐  ┌────────────────────────────┐
- │   XMTP COORDINATION        │  │   UNISWAP V4 HOOKS        │
- │                            │  │                            │
- │   Chat becomes payout      │  │   Custom fee/rebate logic  │
- │   coordination. Client     │  │   for verified humans.     │
- │   approval messages        │  │   Hooks are live on World  │
- │   trigger settlement       │  │   Chain. Used for          │
- │   intent.                  │  │   programmable payout      │
- │                            │  │   routing.                 │
- └────────────────────────────┘  └────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Stablecoins["Stablecoins / FX"]
+        S1["USDC into local stablecoins"]
+        S2["World Chain supports local\nstablecoin assets natively"]
+    end
+
+    subgraph ProofOfHuman["Proof of Human"]
+        P1["Verified humans unlock\nbetter economics"]
+        P2["Economic basis for\nrisk-adjusted pricing"]
+    end
+
+    subgraph XMTPCoord["XMTP Coordination"]
+        X1["Chat becomes payout\ncoordination"]
+        X2["Client approval messages\ntrigger settlement intent"]
+    end
+
+    subgraph Hooks["Uniswap v4 Hooks"]
+        H1["Custom fee/rebate logic\nfor verified humans"]
+        H2["Programmable payout\nrouting on World Chain"]
+    end
+
+    Stablecoins --> WorklineFX["Workline FX\nThe Payout Layer"]
+    ProofOfHuman --> WorklineFX
+    XMTPCoord --> WorklineFX
+    Hooks --> WorklineFX
 ```
 
 ---
