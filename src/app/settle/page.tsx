@@ -363,6 +363,7 @@ export default function SettlePage() {
   // ── Main handler: routes to the right path ──────────────────────────
   async function handleSettle() {
     setError(null);
+    setErrorCode(null);
     try {
       if (inWorldApp) {
         await handleOnchainSettle();
@@ -371,6 +372,11 @@ export default function SettlePage() {
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Settlement failed");
+      const code =
+        e && typeof e === "object" && "code" in e
+          ? ((e as { code?: string }).code ?? null)
+          : null;
+      setErrorCode(code);
       setStep("idle");
     }
   }
