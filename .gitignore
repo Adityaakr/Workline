@@ -40,3 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 !.env.sample
+
+# foundry build artifacts
+contracts/cache/
+contracts/out/
+contracts/broadcast/
+contracts/lib/forge-std/
