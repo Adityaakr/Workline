@@ -13,7 +13,6 @@
   <a href="#how-it-works">How It Works</a> •
   <a href="#architecture">Architecture</a> •
   <a href="#tech-stack">Stack</a> •
-  <a href="#demo">Demo</a> •
   <a href="#getting-started">Setup</a> •
   <a href="#status">Status</a>
 </p>
@@ -279,44 +278,6 @@ graph TB
 | USDC → wNGN | — | Soon |
 | USDC → wKES | — | Soon |
 | USDC → USDC | 1:1 | **Live** |
-
----
-
-## Demo
-
-### 90-Second Demo Script
-
-**0-10s — Setup**
-> "This is Workline FX. It settles global work into local money for verified humans."
-
-**10-25s — Work Approval**
-> "Here, Acme Corp approved a $500 payout for Logo Design Milestone 2."
-> Show XMTP message: "Milestone approved. $500 USDC ready to settle."
-
-**25-40s — Verification**
-> "The worker logs in with World ID, unlocking verified-human payout benefits."
-
-**40-60s — Settlement**
-> "They choose wMXN, see the quote, see the verified-human rebate saving them $2.50, and confirm."
-
-**60-70s — Onchain Proof**
-> Show transaction hash or explorer link.
-> "This is not just a mock UI — the demo includes onchain transaction support."
-
-**70-90s — Economics and Roadmap**
-> "Today we built World ID, XMTP, onchain transaction support, and the full settlement flow. Next is the Workline FX Vault: live USDC-to-local-stablecoin routing with verified-human rebate logic."
-
-### App Screens
-
-| Screen | Description |
-|--------|------------|
-| **Home** | Dashboard with total earned, active agreements, recent payouts, earnings chart, digital card |
-| **Work** | Active work cards with client, milestone progress, payout currency, chat and settle actions |
-| **Chat** | XMTP v3 E2E encrypted messaging with client — payout coordination |
-| **Settle** | Currency selector with quote preview: standard fee vs verified human fee vs savings |
-| **Success** | Amount received, rebate applied, transaction hash, explorer link, World ID badge |
-| **FX** | Uniswap v4 pool overview, fee comparison, supported payout routes |
-| **Account** | Wallet address, World ID status, preferred currency, rebate eligibility |
 
 ---
 
