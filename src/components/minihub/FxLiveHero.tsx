@@ -8,6 +8,7 @@ import {
   type FxReserves,
 } from "@/lib/fx-public-client";
 import { sendAddLiquidity } from "@/lib/onchain";
+import { DevPortalAllowlistCard } from "@/components/minihub/DevPortalAllowlistCard";
 import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
@@ -224,6 +225,11 @@ export function FxLiveHero() {
         <p className="mt-2 text-[10px] font-semibold text-[#4ADE80]">
           {feedback}
         </p>
+      )}
+      {errorCode === "invalid_contract" && (
+        <div className="mt-3">
+          <DevPortalAllowlistCard />
+        </div>
       )}
       {error && (
         <p className="mt-2 text-[10px] font-semibold text-[#FCA5A5]">
