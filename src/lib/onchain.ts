@@ -345,6 +345,27 @@ export type SponsoredSwapResponse = {
   explorerUrl: string;
 };
 
+export async function requestSponsoredSettleSwap(opts: {
+  recipient: string;
+  amountUsdc: number;
+  slippageBps?: number;
+}): Promise<SponsoredSwapResponse> {
+  const res = await fetch("/api/settle/swap", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      address: opts.recipient,
+      amountUsdc: opts.amountUsdc,
+      slippageBps: opts.slippageBps,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Sponsored swap failed (${res.status})`);
+  }
+  return (await res.json()) as SponsoredSwapResponse;
+}
+
 // ── Explorer URL builder ─────────────────────────────────────────────
 export function explorerTxUrl(txHash: string) {
   return `${EXPLORER_BASE}/tx/${txHash}`;
