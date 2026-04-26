@@ -275,6 +275,21 @@ export async function sponsoredSwapUsdcToWmxn(opts: {
         `approve(USDC → pool) failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
+    // Belt-and-suspenders: poll until our public RPC actually sees
+    // the elevated allowance before we let the swap go out. World
+    // Chain's RPC fanout occasionally returns a confirmed receipt
+    // while still serving stale `eth_call` results for ~1 block.
+    const deadline = Date.now() + 8_000;
+    while (Date.now() < deadline) {
+      const a = (await fxPublicClient.readContract({
+        address: FX_ADDRESSES.usdc,
+        abi: ERC20_DEMO_ABI,
+        functionName: "allowance",
+        args: [account.address, FX_ADDRESSES.pool],
+      })) as bigint;
+      if (a >= amountIn) break;
+      await new Promise((r) => setTimeout(r, 400));
+    }
   }
 
   void recipient;
