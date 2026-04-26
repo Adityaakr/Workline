@@ -326,6 +326,25 @@ export async function requestSponsoredFaucet(
   return (await res.json()) as SponsoredFaucetResponse;
 }
 
+// ── Sponsored settle swap (USDC → wMXN, signed by deployer) ──────────
+//
+// Hits `/api/settle/swap` which approves USDC to the pool and executes
+// `pool.swap(...)` from the deployer wallet, with `to=recipient` so the
+// user's wallet receives the swapped wMXN directly. This bypasses
+// MiniKit's contract allowlist entirely and gives the demo a 100%
+// reliable on-chain settlement path even when World App's pre-confirm
+// rejects the user-signed bundle with `invalid_contract`.
+export type SponsoredSwapResponse = {
+  ok: true;
+  recipient: `0x${string}`;
+  swapTxHash: `0x${string}`;
+  approveTxHash?: `0x${string}`;
+  amountIn: string;
+  amountOut: string;
+  minOut: string;
+  explorerUrl: string;
+};
+
 // ── Explorer URL builder ─────────────────────────────────────────────
 export function explorerTxUrl(txHash: string) {
   return `${EXPLORER_BASE}/tx/${txHash}`;
