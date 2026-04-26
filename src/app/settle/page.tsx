@@ -248,12 +248,14 @@ export default function SettlePage() {
 
     setStep("confirming");
 
-    let transactionHash = userOpHash;
-    try {
-      const receipt = await pollUserOpReceipt(userOpHash);
-      transactionHash = receipt.transactionHash;
-    } catch {
-      // Pay API may return final tx directly; use the transactionId
+    let transactionHash = directTxHash ?? userOpHash ?? "";
+    if (!sponsored && userOpHash) {
+      try {
+        const receipt = await pollUserOpReceipt(userOpHash);
+        transactionHash = receipt.transactionHash;
+      } catch {
+        // Pay API may return final tx directly; use the transactionId
+      }
     }
 
     const settlementId = `STL-${Date.now().toString(36).toUpperCase()}`;
