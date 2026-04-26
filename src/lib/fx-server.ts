@@ -292,9 +292,30 @@ export async function sponsoredSwapUsdcToWmxn(opts: {
     }
   }
 
-  void recipient;
+  // Execute the swap with `to = recipient` so the wMXN lands directly
+  // in the user's World App wallet — no extra transfer needed.
+  let swapTxHash: Hex;
+  try {
+    swapTxHash = await walletClient.writeContract({
+      account,
+      chain: worldChain,
+      address: FX_ADDRESSES.pool,
+      abi: FX_POOL_ABI,
+      functionName: "swap",
+      args: [amountIn, FX_ADDRESSES.usdc, recipient, minOut],
+    });
+    await fxPublicClient.waitForTransactionReceipt({
+      hash: swapTxHash,
+      confirmations: 1,
+    });
+  } catch (err) {
+    throw new Error(
+      `pool.swap failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
   return {
-    swapTxHash: ("0x" + "0".repeat(64)) as Hex,
+    swapTxHash,
     approveTxHash,
     amountIn,
     amountOut: quotedOut,
