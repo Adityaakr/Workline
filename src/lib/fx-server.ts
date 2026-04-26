@@ -241,12 +241,46 @@ export async function sponsoredSwapUsdcToWmxn(opts: {
   }
   const minOut = (quotedOut * (BPS_DENOM - slippageBps)) / BPS_DENOM;
 
-  // approve + swap wired up in subsequent commits.
+  // Make sure the pool can pull USDC from the deployer. We approve a
+  // very large headroom (~100k USDC at 6 dp = 1e11) once and skip
+  // re-approving on subsequent calls — this avoids a race where the
+  // approve receipt has been observed by our public RPC but the L2
+  // sequencer that picks up the swap hasn't yet seen the updated
+  // allowance, which surfaces as `ERC20InsufficientAllowance`.
+  const HEADROOM = BigInt("100000000000"); // 100,000 USDC raw
+  const currentAllowance = (await fxPublicClient.readContract({
+    address: FX_ADDRESSES.usdc,
+    abi: ERC20_DEMO_ABI,
+    functionName: "allowance",
+    args: [account.address, FX_ADDRESSES.pool],
+  })) as bigint;
+
+  let approveTxHash: Hex | undefined;
+  if (currentAllowance < amountIn) {
+    try {
+      approveTxHash = await walletClient.writeContract({
+        account,
+        chain: worldChain,
+        address: FX_ADDRESSES.usdc,
+        abi: ERC20_DEMO_ABI,
+        functionName: "approve",
+        args: [FX_ADDRESSES.pool, HEADROOM],
+      });
+      await fxPublicClient.waitForTransactionReceipt({
+        hash: approveTxHash,
+        confirmations: 2,
+      });
+    } catch (err) {
+      throw new Error(
+        `approve(USDC → pool) failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
   void recipient;
-  void account;
-  void walletClient;
   return {
     swapTxHash: ("0x" + "0".repeat(64)) as Hex,
+    approveTxHash,
     amountIn,
     amountOut: quotedOut,
     minOut,
