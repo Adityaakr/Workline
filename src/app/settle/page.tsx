@@ -212,11 +212,35 @@ export default function SettlePage() {
         );
       }
 
-      const swap = await sendUsdcToWmxnSwap({
-        recipient: wallet,
-        amountUsdc: effectiveAmount,
-      });
-      userOpHash = swap.userOpHash;
+      // Try the user-signed bundled swap first. If World App rejects
+      // it (invalid_contract / disallowed_operation / simulation_failed
+      // — usually a Dev Portal allowlist edge case), gracefully fall
+      // back to the server-sponsored path so the demo still settles
+      // end-to-end with real on-chain wMXN landing in the user's
+      // wallet from the same Workline FX pool.
+      try {
+        const swap = await sendUsdcToWmxnSwap({
+          recipient: wallet,
+          amountUsdc: effectiveAmount,
+        });
+        userOpHash = swap.userOpHash;
+      } catch (e) {
+        const code =
+          e && typeof e === "object" && "code" in e
+            ? ((e as { code?: string }).code ?? null)
+            : null;
+        const recoverable =
+          code === "invalid_contract" ||
+          code === "disallowed_operation" ||
+          code === "simulation_failed";
+        if (!recoverable) throw e;
+        const sponsoredResult = await requestSponsoredSettleSwap({
+          recipient: wallet,
+          amountUsdc: effectiveAmount,
+        });
+        directTxHash = sponsoredResult.swapTxHash;
+        sponsored = true;
+      }
     } else {
       const tx = await sendDemoTransfer(wallet);
       userOpHash = tx.userOpHash;
