@@ -1,21 +1,27 @@
 "use client";
 
 import { AppShell } from "@/components/minihub/AppShell";
+import { FxLiveHero } from "@/components/minihub/FxLiveHero";
 import { pools as fxPools } from "@/data/minihub";
+import { FX_ADDRESSES } from "@/lib/fx-contracts";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 
+function shortAddr(addr: `0x${string}`) {
+  return `${addr.slice(0, 6)}...${addr.slice(-5)}`;
+}
+
 const poolComposition: Record<string, { asset: string; address: string; share: string }[]> = {
   "USDC / wMXN": [
-    { asset: "USDC", address: "0x79A0...D24d1", share: "52%" },
-    { asset: "wMXN", address: "0x3a1F...8e2B4", share: "48%" },
+    { asset: "USDC", address: shortAddr(FX_ADDRESSES.usdc), share: "52%" },
+    { asset: "wMXN", address: shortAddr(FX_ADDRESSES.wmxn), share: "48%" },
   ],
   "USDC / wBRL": [
-    { asset: "USDC", address: "0x79A0...D24d1", share: "54%" },
+    { asset: "USDC", address: shortAddr(FX_ADDRESSES.usdc), share: "54%" },
     { asset: "wBRL", address: "0x7c2D...f1A09", share: "46%" },
   ],
   "USDC / wINR": [
-    { asset: "USDC", address: "0x79A0...D24d1", share: "51%" },
+    { asset: "USDC", address: shortAddr(FX_ADDRESSES.usdc), share: "51%" },
     { asset: "wINR", address: "0x5b8E...c4D72", share: "49%" },
   ],
 };
@@ -30,45 +36,10 @@ export default function FXPage() {
         <p className="mt-1 text-xs text-[#9094A6]">Uniswap v4 hooks on World Chain</p>
       </div>
 
-      {/* LP earnings card */}
-      <motion.article
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.08 }}
-        className="mt-5 rounded-[22px] bg-gradient-to-br from-[#1B1F3B] to-[#2A2F54] p-5 text-white shadow-[0_6px_24px_rgba(27,31,59,0.2)]"
-      >
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-[#A5A8FF]">Your LP Earnings</p>
-            <p className="mt-2 text-3xl font-black tracking-tight">
-              $142<span className="text-sm font-semibold text-white/50">.38</span>
-            </p>
-          </div>
-          <span className="rounded-full bg-[#22C55E]/20 px-2.5 py-1 text-[10px] font-bold text-[#4ADE80]">
-            +12.4% APY
-          </span>
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          {[
-            { l: "Swap Fees", v: "$98.20" },
-            { l: "Hook Fees", v: "$44.18" },
-          ].map((i) => (
-            <div
-              key={i.l}
-              className="rounded-[12px] bg-white/10 py-2.5 text-center"
-            >
-              <p className="text-base font-black text-white">{i.v}</p>
-              <p className="mt-0.5 text-[10px] text-white/50">{i.l}</p>
-            </div>
-          ))}
-        </div>
-        <div className="mt-3 flex items-center gap-2 rounded-[10px] bg-white/8 px-3 py-2">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M7 1V13M1 7H13" stroke="#A5A8FF" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-          <p className="text-[10px] text-white/60">Earnings auto-compound into your LP position</p>
-        </div>
-      </motion.article>
+      {/* Live USDC/wMXN pool — real reserves + LP add */}
+      <div className="mt-5">
+        <FxLiveHero />
+      </div>
 
       {/* Active pools with inline expand */}
       <div className="mt-5">
