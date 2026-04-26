@@ -10,7 +10,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "prettier --check ."
+    "lint": "prettier --check .",
+    "tunnel": "ngrok http 3000",
+    "tunnel:lhr": "ssh -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30 -R 80:localhost:3000 nokey@localhost.run"
   },
   "dependencies": {
     "@noble/curves": "^2.2.0",

@@ -33,9 +33,11 @@ export default function ClientProviders({
   children,
   session,
 }: ClientProvidersProps) {
+  const appId = process.env.NEXT_PUBLIC_APP_ID as `app_${string}` | undefined;
+
   return (
     <ErudaProvider>
-      <MiniKitProvider>
+      <MiniKitProvider props={{ appId }}>
         <SessionProvider session={session}>
           <DemoStateProvider>{children}</DemoStateProvider>
         </SessionProvider>

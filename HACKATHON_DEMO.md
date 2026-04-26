@@ -2,65 +2,65 @@
 
 ## 30-second pitch
 
-Workline FX turns global stablecoin payouts into instant local-stablecoin settlement for verified humans. A business can send a payout in stablecoins, the recipient chooses the local stablecoin they actually use, and verified humans unlock better FX economics through rebate routing inside a World Mini App.
+Workline FX turns global stablecoin payouts into instant local-stablecoin settlement for verified humans. Clients approve in **World Chat**, a verified worker chooses local stablecoin, **Workline AI** suggests a smart split, and the payout settles on World Chain — leaving behind a **verified income receipt** that builds a portable trust profile for credit.
 
 ## Demo flow (10 steps)
 
 1. **Open Home** — show balance hero, earnings chart, digital card, gamification section
 2. **See incoming payout ready** — the "Incoming payout ready" card with amount and CTA
 3. **Tap "Choose settlement"** — navigate to `/settle`
-4. **See AI suggestion** — "Workline AI" banner recommends how much to convert vs. keep in stables
-5. **Choose local stablecoin** — select wMXN, wBRL, wINR, or USDC; see live rate
-6. **Review quote and rebate** — payout summary shows fee, rebate (only if verified human), and route
-7. **Confirm settlement** — in World App: real USDC transfer or DNA Swap deep-link; outside: mock API
-8. **See success state** — real received amount, rebate if eligible, clickable explorer link for on-chain tx
-9. **Check activity** — completed settlement appears at top of activity list; home card updates
-10. **Show explorer** — tap tx hash link to open worldscan.org and see the real on-chain transaction
+4. **See the World Chat approval** — client message and approval timestamp surface as the settlement trigger
+5. **Review Smart Split** — Workline AI proposes a 3-way allocation (local / stable / reserve); tap "Apply Smart Split"
+6. **Choose settlement currency** — select wMXN, wBRL, wINR, or USDC; see live rate
+7. **Review quote and rebate** — payout summary shows fee, rebate (only if verified human), and route
+8. **Confirm settlement** — in World App: real USDC transfer; outside: mock API
+9. **See success state** — settled amount, on-chain badge, **Verified Income Receipt** card, and **Credit line teaser**
+10. **Check activity / account** — completed settlement appears in activity; account shows estimated credit line and trust score
 
 ### Optional demo extensions
 
-- **Account** — show World ID verification state; tap "Verify with World ID" to toggle
+- **Account** — show World ID verification state and the compact credit teaser
 - **FX** — show LP earnings, pool APYs, rebate hook explanation
-- **Work** — show active agreements with progress bars
+- **Work** — World Chat conversation with the client
 - **Reset** — Account page has a "Reset" button in demo mode to replay the full flow
 
 ## What World primitives are used
 
 | Primitive | Usage |
 |-----------|-------|
-| MiniKit | App detection, user state (`verificationStatus`, `preferredCurrency`), launch context |
+| MiniKit | App detection, user state, launch context |
 | Wallet Auth | Primary sign-in via `MiniKit.walletAuth()` → NextAuth session |
-| IDKit / World ID | Identity verification scaffold; gated rebate logic for verified humans |
-| Pay | Scaffold ready (`src/lib/integrations/payments.ts`); not executed in demo |
-| Send Transaction | Real USDC transfer via `MiniKit.sendTransaction()` with userOp receipt polling |
-| DNA Swap QA | Deep-link to World App native swap for FX currency conversions |
-| AI Suggestion | Rule-based smart split recommendation on settle page |
+| World ID / IDKit | Identity verification scaffold; gated rebate logic for verified humans |
+| Send Transaction | Real USDC / WLD transfer via `MiniKit.sendTransaction()` with userOp receipt polling |
+| World Chat (XMTP) | Client → worker messaging and approval as a settlement trigger |
+| AI Suggestion | Rule-based Smart Split allocation on the settle page |
 
 ## What is built
 
 - Complete 5-tab mobile UI (Home, Work, Settle, FX, Account)
-- End-to-end settlement flow: choose currency → API call → success with real data
+- End-to-end settlement flow: World Chat approval → Smart Split → choose currency → settle → receipt + credit teaser
 - Shared settlement math (fee 0.15%, rebate 0.08% for verified humans)
 - Client-side state persistence (localStorage) for settlements, verification, preferences
 - Activity page merges completed settlements with mock history
-- Account with World ID verification toggle, preferred currency, settlement stats
-- RebateBadge and quote row semantics gated by verification state
+- Account with World ID verification toggle, preferred currency, settlement stats, and credit teaser
 - Framer Motion animations throughout
 
 ## What is real (on-chain)
 
-- USDC settlement: real `MiniKit.sendTransaction()` calling USDC `transfer()` on World Chain
-- FX swap: real Uniswap swap via DNA Swap Quick Action deep-link (native World App UI)
+- USDC / WLD settlement: real `MiniKit.sendTransaction()` on World Chain
 - Transaction hashes are real and viewable on worldscan.org
 - Wallet Auth: real SIWE authentication flow via MiniKit
+- World Chat: real end-to-end encrypted messaging via XMTP v3 (MLS)
 
 ## What is mocked
 
 - `POST /api/settle` is the web-only fallback (outside World App) with deterministic txHash
 - Settlement state is persisted in localStorage, not a database
 - World ID verification outside World App is a demo toggle
+- World Chat approvals are seeded (mock messages tied to ready payouts) so the flow always demos cleanly
+- Verified Income Receipts and Credit Line Teaser values are derived locally from settlement history
 - Mock data for balances, agreements, pools, charts
-- AI suggestion uses a rule-based heuristic, not a real ML model
+- AI Smart Split uses a rule-based heuristic, not a real ML model
 
 ## Developer Portal setup
 
@@ -71,10 +71,10 @@ Before real transactions work, allowlist in Developer Portal > Permissions:
 ## What comes next
 
 - Server-side verification of settlement results before confirming payouts
-- Backend persistence of World ID nullifiers and user state
+- Backend persistence of World ID nullifiers, receipts, and trust profile
 - Real LP pool integration and dynamic FX rate feeds
-- Real AI model for smart split suggestions (currently rule-based heuristic)
-- Production security audit for all backend verification paths
+- Real AI model for Smart Split suggestions (currently rule-based heuristic)
+- Real credit underwriting based on receipt history (currently a teaser)
 
 ## Environment setup for demo
 

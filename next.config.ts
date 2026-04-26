@@ -1,7 +1,18 @@
 import type { NextConfig } from "next";
 
+// Always allow the host pinned in AUTH_URL (whatever ngrok subdomain the
+// dev currently has), plus a wildcard for any *.ngrok-free.app /
+// *.ngrok.app / *.ngrok.io subdomain so dev mode doesn't break every
+// time the tunnel rotates and we forget to update .env.local.
 const authUrl = process.env.AUTH_URL;
-const allowedDevOrigins = authUrl ? [new URL(authUrl).host] : [];
+const allowedDevOrigins = [
+  ...(authUrl ? [new URL(authUrl).host] : []),
+  "*.ngrok-free.app",
+  "*.ngrok.app",
+  "*.ngrok.io",
+  "*.lhr.life",
+  "*.localhost.run",
+];
 
 const nextConfig: NextConfig = {
   images: {
