@@ -142,7 +142,6 @@ export async function ensureMinimumBalance(opts: {
       hash: usdcTxHash,
       confirmations: 1,
     });
-    usdcBalance += deficit;
   }
 
   if (minWmxn && minWmxn > BigInt(0) && wmxnBalance < minWmxn) {
@@ -160,7 +159,29 @@ export async function ensureMinimumBalance(opts: {
       hash: wmxnTxHash,
       confirmations: 1,
     });
-    wmxnBalance += deficit;
+  }
+
+  // Re-read balances so the response reflects on-chain truth, not the
+  // optimistic in-memory accumulator. World App reads from a different
+  // RPC than us, but a confirmed receipt + a fresh read here is the
+  // strongest signal we can give the client before it triggers MiniKit.
+  if (usdcMinted || wmxnMinted) {
+    const [usdcAfter, wmxnAfter] = (await Promise.all([
+      fxPublicClient.readContract({
+        address: FX_ADDRESSES.usdc,
+        abi: ERC20_DEMO_ABI,
+        functionName: "balanceOf",
+        args: [to],
+      }),
+      fxPublicClient.readContract({
+        address: FX_ADDRESSES.wmxn,
+        abi: ERC20_DEMO_ABI,
+        functionName: "balanceOf",
+        args: [to],
+      }),
+    ])) as [bigint, bigint];
+    usdcBalance = usdcAfter;
+    wmxnBalance = wmxnAfter;
   }
 
   return {
