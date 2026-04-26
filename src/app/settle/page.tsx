@@ -67,6 +67,7 @@ export default function SettlePage() {
   const [selected, setSelected] = useState<Currency>(currencies[0]);
   const [step, setStep] = useState<SettleStep>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [smartSplitApplied, setSmartSplitApplied] = useState(false);
   const [smartSplit, setSmartSplit] = useState<AiSmartSplitResult | null>(null);
   const [smartSplitLoading, setSmartSplitLoading] = useState(false);
