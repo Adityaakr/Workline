@@ -156,6 +156,10 @@ export async function ensureMinimumBalance(opts: {
       args: [to, deficit],
     });
     wmxnMinted = deficit;
+    await fxPublicClient.waitForTransactionReceipt({
+      hash: wmxnTxHash,
+      confirmations: 1,
+    });
     wmxnBalance += deficit;
   }
 
