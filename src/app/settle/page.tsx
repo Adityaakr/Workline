@@ -612,6 +612,10 @@ export default function SettlePage() {
           </p>
         )}
 
+        {errorCode === "invalid_contract" && (
+          <DevPortalAllowlistCard />
+        )}
+
         {/* Destination amount callout — visible right above the CTA so
             the user knows EXACTLY what's about to land in their wallet,
             even if the World App popup chrome is sparse. */}
