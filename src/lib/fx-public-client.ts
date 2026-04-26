@@ -95,6 +95,36 @@ export async function quoteSwap(
   })) as bigint;
 }
 
+/// Polls the user's token balance until it reaches `minRaw` (raw 6-dec
+/// units) or `timeoutMs` elapses. Returns the final balance.
+///
+/// Used immediately after `/api/faucet` returns so we don't fire a
+/// MiniKit swap before our RPC view shows the new balance — without
+/// this, World App's pre-confirm simulation can race the mint receipt
+/// and report `simulation_failed`.
+export async function waitForMinTokenBalance(opts: {
+  owner: Address;
+  token: Address;
+  minRaw: bigint;
+  timeoutMs?: number;
+  intervalMs?: number;
+}): Promise<bigint> {
+  const { owner, token, minRaw, timeoutMs = 8_000, intervalMs = 500 } = opts;
+  const deadline = Date.now() + timeoutMs;
+  let balance = BigInt(0);
+  while (Date.now() < deadline) {
+    balance = (await fxPublicClient.readContract({
+      address: token,
+      abi: ERC20_DEMO_ABI,
+      functionName: "balanceOf",
+      args: [owner],
+    })) as bigint;
+    if (balance >= minRaw) return balance;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  return balance;
+}
+
 export function formatFxToken(value: bigint): string {
   const base = BigInt(10) ** BigInt(FX_TOKEN_DECIMALS);
   const whole = value / base;
