@@ -5,18 +5,38 @@ import { currencies } from "@/data/minihub";
 import { useDemoState } from "@/lib/demo-state";
 import { isRunningInWorldApp } from "@/lib/integrations/minikit";
 import { requestWorldIdVerification } from "@/lib/integrations/world-id";
+import { buildCreditLineTeaser } from "@/lib/receipts";
 import { motion } from "framer-motion";
 import { signOut, useSession } from "next-auth/react";
-import { useCallback, useState } from "react";
+import Link from "next/link";
+import { useCallback, useMemo, useState } from "react";
+import { CreditLineTeaser } from "./CreditLineTeaser";
 import { RebateBadge } from "./RebateBadge";
+import { WalletBalanceCard } from "./WalletBalanceCard";
 
 export function AccountPanel() {
   const { data: session } = useSession();
-  const { verifiedHuman, setVerifiedHuman, preferredCurrency, setPreferredCurrency, isDemoMode, completedSettlements, resetDemo } = useDemoState();
+  const {
+    verifiedHuman,
+    setVerifiedHuman,
+    preferredCurrency,
+    setPreferredCurrency,
+    isDemoMode,
+    completedSettlements,
+    setLastSettlement,
+    resetDemo,
+  } = useDemoState();
+  const latestReceipt = completedSettlements[0]?.receipt ?? null;
+  const latestSettlement = completedSettlements[0] ?? null;
   const [pending, setPending] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
+
+  const creditTeaser = useMemo(
+    () => buildCreditLineTeaser(completedSettlements),
+    [completedSettlements],
+  );
 
   async function signIn() {
     setPending(true);
@@ -110,6 +130,13 @@ export function AccountPanel() {
         </div>
       </motion.article>
 
+      {/* Live on-chain balances + sponsored faucet */}
+      {session?.user?.walletAddress && (
+        <WalletBalanceCard
+          walletAddress={session.user.walletAddress as `0x${string}`}
+        />
+      )}
+
       {/* Stats */}
       <motion.article initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }} className="rounded-[22px] bg-white p-5 shadow-[0_2px_10px_rgba(27,31,59,0.04)]">
         <p className="text-sm font-bold text-[#1B1F3B]">Settlement stats</p>
@@ -124,6 +151,63 @@ export function AccountPanel() {
           </div>
         </div>
       </motion.article>
+
+      {/* Latest receipt - tap to re-open the full receipt screen */}
+      {latestReceipt && latestSettlement && (
+        <Link
+          href="/settle/success"
+          onClick={() => setLastSettlement(latestSettlement)}
+          className="block"
+        >
+          <motion.article
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.13 }}
+            whileTap={{ scale: 0.985 }}
+            className="overflow-hidden rounded-[22px] bg-white shadow-[0_2px_10px_rgba(27,31,59,0.04)]"
+          >
+            <div className="flex items-center justify-between bg-[#1B1F3B] px-5 py-3 text-white">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#8B8FFF]">
+                Latest Receipt
+              </p>
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[9px] font-bold text-white/90">
+                <span className="h-1 w-1 rounded-full bg-[#22C55E]" />
+                On-chain
+              </span>
+            </div>
+            <div className="px-5 py-4">
+              <div className="flex items-baseline gap-1">
+                <span className="text-[22px] font-black tracking-tight text-[#1B1F3B]">
+                  ${latestReceipt.amountUSDC.toLocaleString()}
+                </span>
+                <span className="text-[10px] font-semibold text-[#9094A6]">
+                  USDC
+                </span>
+              </div>
+              <p className="mt-0.5 text-[11px] text-[#9094A6]">
+                {latestReceipt.payerName} ·{" "}
+                {new Date(latestReceipt.issuedAt).toLocaleDateString(
+                  undefined,
+                  { month: "short", day: "numeric" },
+                )}
+              </p>
+              <div className="mt-3 flex items-center justify-between">
+                <p className="font-mono text-[9px] text-[#BCC0CE]">
+                  {latestReceipt.receiptId}
+                </p>
+                <p className="text-[10px] font-bold text-[#3B3FE7]">
+                  View full receipt →
+                </p>
+              </div>
+            </div>
+          </motion.article>
+        </Link>
+      )}
+
+      {/* Credit line teaser (compact) */}
+      {completedSettlements.length > 0 && (
+        <CreditLineTeaser teaser={creditTeaser} variant="compact" />
+      )}
 
       {/* Environment / demo note */}
       {isDemoMode && (
