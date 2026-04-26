@@ -194,6 +194,14 @@ export async function ensureMinimumBalance(opts: {
   };
 }
 
+export type SponsoredSwapResult = {
+  swapTxHash: Hex;
+  approveTxHash?: Hex;
+  amountIn: bigint;
+  amountOut: bigint;
+  minOut: bigint;
+};
+
 /// @notice True when the address is past the 6h faucet cooldown for both
 ///         tokens. Used by the API route to short-circuit redundant
 ///         drips and return a stable response.
