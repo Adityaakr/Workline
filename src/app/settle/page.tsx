@@ -1,6 +1,7 @@
 "use client";
 
 import { AppShell } from "@/components/minihub/AppShell";
+import { DevPortalAllowlistCard } from "@/components/minihub/DevPortalAllowlistCard";
 import { RebateBadge } from "@/components/minihub/RebateBadge";
 import { SettlementQuoteCard } from "@/components/minihub/SettlementQuoteCard";
 import { SmartSplitCard } from "@/components/minihub/SmartSplitCard";
@@ -24,9 +25,12 @@ import {
   getUserWalletAddress,
   pollUserOpReceipt,
   requestSponsoredFaucet,
+  requestSponsoredSettleSwap,
   sendDemoTransfer,
   sendUsdcToWmxnSwap,
 } from "@/lib/onchain";
+import { tokenUnits, waitForMinTokenBalance } from "@/lib/fx-public-client";
+import { FX_ADDRESSES } from "@/lib/fx-contracts";
 import {
   buildCreditLineTeaser,
   buildVerifiedIncomeReceipt,
