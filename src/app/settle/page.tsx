@@ -284,7 +284,9 @@ export default function SettlePage() {
       explorerUrl,
       route: selected.code === "USDC"
         ? "USDC → World Chain"
-        : `USDC → ${selected.code} (World Chain)`,
+        : sponsored
+          ? `USDC → ${selected.code} (Workline FX pool, sponsored)`
+          : `USDC → ${selected.code} (World Chain)`,
       receivedAmount: quote.receivedAmount,
       rebateAmount: quote.rebateAmount,
       selectedCurrency: selected.code,
