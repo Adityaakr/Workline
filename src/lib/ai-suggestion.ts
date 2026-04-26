@@ -8,6 +8,19 @@ export type SmartSplitSuggestion = {
   breakdown: { label: string; amount: number }[];
 };
 
+// 3-way split visual model used by the SmartSplitCard. The split adds
+// up to 100% and is what we render as a stacked allocation bar.
+export type SmartSplitAllocation = {
+  localPct: number;
+  stablePct: number;
+  reservePct: number;
+  localAmount: number;
+  stableAmount: number;
+  reserveAmount: number;
+  localCurrency: string;
+  reason: string;
+};
+
 const DEFAULT_LOCAL_RATIO = 0.7;
 
 export function computeSmartSplit(opts: {
@@ -65,5 +78,37 @@ export function computeSmartSplit(opts: {
       { label: "Groceries & daily", amount: groceriesShare },
       { label: "Stable savings", amount: stableAmount },
     ],
+  };
+}
+
+// Map the rule-based suggestion to a 3-way allocation: spend in local,
+// hold in stable, keep an emergency reserve. Reserve is carved out of
+// stables (still USDC) but visualized separately to communicate a
+// money habit, not just a conversion.
+export function computeSmartSplitAllocation(opts: {
+  amountUSDC: number;
+  preferredCurrency: string;
+  settlementHistory: SettleResponse[];
+  verifiedHuman: boolean;
+}): SmartSplitAllocation {
+  const suggestion = computeSmartSplit(opts);
+  const total = Math.max(opts.amountUSDC, 1);
+
+  const reserveAmount = Math.round(suggestion.stableAmount * 0.4);
+  const stableSavings = suggestion.stableAmount - reserveAmount;
+
+  const localPct = Math.round((suggestion.localAmount / total) * 100);
+  const reservePct = Math.round((reserveAmount / total) * 100);
+  const stablePct = Math.max(0, 100 - localPct - reservePct);
+
+  return {
+    localPct,
+    stablePct,
+    reservePct,
+    localAmount: suggestion.localAmount,
+    stableAmount: stableSavings,
+    reserveAmount,
+    localCurrency: suggestion.localCurrency,
+    reason: suggestion.reason,
   };
 }
