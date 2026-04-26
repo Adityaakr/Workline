@@ -200,6 +200,18 @@ export default function SettlePage() {
       } catch (e) {
         console.warn("faucet top-up failed", e);
       }
+      const finalBalance = await waitForMinTokenBalance({
+        owner: wallet,
+        token: FX_ADDRESSES.usdc,
+        minRaw: tokenUnits(minUsdcWithSlippage),
+        timeoutMs: 12_000,
+      });
+      if (finalBalance < tokenUnits(effectiveAmount)) {
+        throw new Error(
+          `Wallet does not yet hold ${effectiveAmount} USDC after top-up — please retry in a few seconds.`,
+        );
+      }
+
       const swap = await sendUsdcToWmxnSwap({
         recipient: wallet,
         amountUsdc: effectiveAmount,
