@@ -14,6 +14,20 @@ import { quoteSwap, tokenUnits } from "./fx-public-client";
 // the UI just sees the generic Error and the user has to dig into the
 // Eruda console to know whether to allowlist a contract, fund the
 // wallet, or fix calldata.
+// Error class that carries the MiniKit error_code so the UI can
+// switch on it (e.g. render a Dev Portal allowlist cheat sheet for
+// `invalid_contract`).
+export class MiniKitError extends Error {
+  code?: string;
+  details?: unknown;
+  constructor(message: string, code?: string, details?: unknown) {
+    super(message);
+    this.name = "MiniKitError";
+    this.code = code;
+    this.details = details;
+  }
+}
+
 function describeMiniKitError(err: unknown, fallback: string): Error {
   if (err && typeof err === "object") {
     const e = err as {
