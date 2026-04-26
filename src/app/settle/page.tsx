@@ -186,18 +186,18 @@ export default function SettlePage() {
     let sponsored = false;
     if (swapToWmxn) {
       // Guarantee the wallet holds enough USDC for the swap BEFORE we
-      // open the World App popup. The faucet route will top up via
-      // owner-mint() if the public faucet is on cooldown — this is
-      // what makes the popup show a real "Receive X wMXN" line item
-      // instead of the blank "Receive 0" the user was seeing.
+      // open the World App popup. The faucet route owner-mints any
+      // deficit and waits for the receipt, but World App reads from
+      // its own RPC node — so we ALSO poll our public client until the
+      // balance is visible here. Without this double-check, MiniKit's
+      // pre-confirm simulation can race the mint receipt and the popup
+      // shows "something went wrong" instead of "Receive X wMXN".
+      const minUsdcWithSlippage = effectiveAmount * 1.01;
       try {
         await requestSponsoredFaucet(wallet, {
-          minUsdc: effectiveAmount * 1.01, // 1% headroom for slippage
+          minUsdc: minUsdcWithSlippage,
         });
       } catch (e) {
-        // Top-up is best-effort: if it fails (deployer out of gas,
-        // RPC hiccup) we still attempt the swap so the user gets a
-        // clear on-chain error rather than a silent abort.
         console.warn("faucet top-up failed", e);
       }
       const swap = await sendUsdcToWmxnSwap({
