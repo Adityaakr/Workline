@@ -55,18 +55,29 @@ export async function POST(req: Request) {
   let wmxnTxHash: string | undefined;
   let publicDripSkipped: string | undefined;
 
-  try {
-    const eligibility = await isFaucetEligible(address);
-    if (eligibility.usdcEligible || eligibility.wmxnEligible) {
-      const drip = await sponsoredFaucetDrip(address);
-      usdcTxHash = drip.usdcTxHash;
-      wmxnTxHash = drip.wmxnTxHash;
-    } else {
-      publicDripSkipped = "cooldown";
+  // When the caller has specified explicit minimums, skip the public
+  // drip entirely — the owner-mint top-up below will guarantee the
+  // requested balances and any extra public-drip broadcasts only add
+  // latency + nonce contention. The public drip is reserved for the
+  // /account "Get demo balance" path that wants a flat 1k/1k handout.
+  const hasMinima = minUsdc > BigInt(0) || minWmxn > BigInt(0);
+
+  if (!hasMinima) {
+    try {
+      const eligibility = await isFaucetEligible(address);
+      if (eligibility.usdcEligible || eligibility.wmxnEligible) {
+        const drip = await sponsoredFaucetDrip(address);
+        usdcTxHash = drip.usdcTxHash;
+        wmxnTxHash = drip.wmxnTxHash;
+      } else {
+        publicDripSkipped = "cooldown";
+      }
+    } catch (err) {
+      publicDripSkipped =
+        err instanceof Error ? err.message : "public drip failed";
     }
-  } catch (err) {
-    publicDripSkipped =
-      err instanceof Error ? err.message : "public drip failed";
+  } else {
+    publicDripSkipped = "skipped-for-min-balance";
   }
 
   // If the caller asked for a minimum balance, guarantee it via owner
