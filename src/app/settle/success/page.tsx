@@ -1,5 +1,7 @@
 "use client";
 
+import { CreditLineTeaser } from "@/components/minihub/CreditLineTeaser";
+import { VerifiedIncomeReceiptCard } from "@/components/minihub/VerifiedIncomeReceiptCard";
 import { useDemoState } from "@/lib/demo-state";
 import { formatReceived } from "@/lib/settlement-quote";
 import { motion } from "framer-motion";
@@ -24,6 +26,7 @@ export default function SettleSuccessPage() {
 
   const {
     sourceAmount,
+    convertedUsdc,
     receivedAmount,
     selectedCurrency,
     rebateAmount,
@@ -34,10 +37,15 @@ export default function SettleSuccessPage() {
     userOpHash,
     onchain,
     explorerUrl,
+    receipt,
+    splitBuckets,
+    creditTeaser,
   } = lastSettlement;
 
+  const splitActive = !!splitBuckets;
+
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center bg-[#F4F5F9] px-8 text-center">
+    <div className="flex min-h-dvh flex-col items-center bg-[#F4F5F9] px-6 py-12 text-center">
       {/* Checkmark */}
       <motion.div
         initial={{ scale: 0.85, opacity: 0 }}
@@ -71,8 +79,20 @@ export default function SettleSuccessPage() {
         transition={{ delay: 0.3 }}
         className="mt-2 text-sm text-[#9094A6]"
       >
-        ${sourceAmount.toLocaleString()}.00 →{" "}
-        {formatReceived(receivedAmount, selectedCurrency)}
+        {splitActive ? (
+          <>
+            <span className="font-semibold text-[#1B1F3B]">
+              ${sourceAmount.toLocaleString()} USDC
+            </span>{" "}
+            received · ${(convertedUsdc ?? 0).toLocaleString()} →{" "}
+            {formatReceived(receivedAmount, selectedCurrency)}
+          </>
+        ) : (
+          <>
+            ${sourceAmount.toLocaleString()}.00 →{" "}
+            {formatReceived(receivedAmount, selectedCurrency)}
+          </>
+        )}
       </motion.p>
 
       <motion.p
@@ -161,6 +181,20 @@ export default function SettleSuccessPage() {
         >
           userOp: {userOpHash.slice(0, 14)}…{userOpHash.slice(-6)}
         </motion.p>
+      )}
+
+      {/* Verified Income Receipt */}
+      {receipt && (
+        <div className="mt-8 w-full max-w-[360px]">
+          <VerifiedIncomeReceiptCard receipt={receipt} />
+        </div>
+      )}
+
+      {/* Credit Line Teaser */}
+      {creditTeaser && (
+        <div className="mt-4 w-full max-w-[360px]">
+          <CreditLineTeaser teaser={creditTeaser} />
+        </div>
       )}
 
       {/* Actions */}

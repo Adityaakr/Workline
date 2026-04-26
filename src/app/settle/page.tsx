@@ -1,25 +1,41 @@
 "use client";
 
-import { AiSuggestionBanner } from "@/components/minihub/AiSuggestionBanner";
 import { AppShell } from "@/components/minihub/AppShell";
 import { RebateBadge } from "@/components/minihub/RebateBadge";
 import { SettlementQuoteCard } from "@/components/minihub/SettlementQuoteCard";
-import { currencies, payouts } from "@/data/minihub";
-import { computeSmartSplit } from "@/lib/ai-suggestion";
+import { SmartSplitCard } from "@/components/minihub/SmartSplitCard";
+import { WorldChatApprovalCard } from "@/components/minihub/WorldChatApprovalCard";
+import {
+  currencies,
+  getWorldChatApprovalByPayoutId,
+  payouts,
+} from "@/data/minihub";
+import { fetchAiSmartSplit, ruleBasedSmartSplit } from "@/lib/ai-client";
+import type { AiSmartSplitResult } from "@/lib/ai-types";
 import { useDemoState } from "@/lib/demo-state";
 import { isRunningInWorldApp } from "@/lib/integrations/minikit";
-import type { Currency, SettleResponse } from "@/lib/minihub-types";
+import type {
+  Currency,
+  SettleResponse,
+  SplitBuckets,
+} from "@/lib/minihub-types";
 import {
   explorerTxUrl,
   getUserWalletAddress,
   pollUserOpReceipt,
+  requestSponsoredFaucet,
   sendDemoTransfer,
+  sendUsdcToWmxnSwap,
 } from "@/lib/onchain";
+import {
+  buildCreditLineTeaser,
+  buildVerifiedIncomeReceipt,
+} from "@/lib/receipts";
 import { computeSettlementQuote } from "@/lib/settlement-quote";
 import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type SettleStep = "idle" | "submitting" | "confirming" | "done";
 
@@ -47,6 +63,9 @@ export default function SettlePage() {
   const [selected, setSelected] = useState<Currency>(currencies[0]);
   const [step, setStep] = useState<SettleStep>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [smartSplitApplied, setSmartSplitApplied] = useState(false);
+  const [smartSplit, setSmartSplit] = useState<AiSmartSplitResult | null>(null);
+  const [smartSplitLoading, setSmartSplitLoading] = useState(false);
 
   const inWorldApp = useMemo(() => {
     try {
@@ -56,33 +75,96 @@ export default function SettlePage() {
     }
   }, []);
 
-  const smartSplit = useMemo(
-    () =>
-      readyPayout
-        ? computeSmartSplit({
-            amountUSDC: readyPayout.amount,
-            preferredCurrency,
-            settlementHistory: completedSettlements,
-            verifiedHuman,
-          })
-        : null,
-    [readyPayout, preferredCurrency, completedSettlements, verifiedHuman],
+  // Ask the live AI for a Smart Split whenever the ready payout changes.
+  // The endpoint is server-side and falls back to a rule-based engine
+  // if OpenRouter is unreachable, so this UI is never blocked.
+  useEffect(() => {
+    if (!readyPayout) {
+      setSmartSplit(null);
+      return;
+    }
+
+    let cancelled = false;
+    const seedHistory = completedSettlements;
+    const req = {
+      amountUSDC: readyPayout.amount,
+      preferredCurrency,
+      verifiedHuman,
+      payerName: readyPayout.sender,
+      payoutPurpose: readyPayout.purpose,
+      recentSettlements: seedHistory.slice(0, 5).map((s) => ({
+        amountUSDC: s.sourceAmount,
+        selectedCurrency: s.selectedCurrency,
+        verifiedHuman: s.verifiedHuman,
+      })),
+    };
+
+    setSmartSplit(ruleBasedSmartSplit(req, seedHistory));
+    setSmartSplitLoading(true);
+    setSmartSplitApplied(false);
+
+    fetchAiSmartSplit(req, seedHistory)
+      .then((res) => {
+        if (cancelled) return;
+        setSmartSplit(res);
+      })
+      .finally(() => {
+        if (!cancelled) setSmartSplitLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [readyPayout, preferredCurrency, verifiedHuman, completedSettlements]);
+
+  const approval = useMemo(
+    () => (readyPayout ? getWorldChatApprovalByPayoutId(readyPayout.id) : null),
+    [readyPayout],
   );
 
+  // When a Smart Split is applied, only the local-spend bucket flows
+  // through the FX swap; the rest stays as USDC narratively.
+  const splitActive =
+    smartSplitApplied && !!smartSplit && smartSplit.localPct > 0;
+
+  const splitBuckets: SplitBuckets | undefined = splitActive
+    ? {
+        localCurrency: smartSplit!.localCurrency,
+        localUsdc: smartSplit!.localAmount,
+        stableUsdc: smartSplit!.stableAmount,
+        reserveUsdc: smartSplit!.reserveAmount,
+      }
+    : undefined;
+
+  const effectiveAmount = splitActive
+    ? smartSplit!.localAmount
+    : (readyPayout?.amount ?? 0);
+
   const quote = computeSettlementQuote({
-    amountUSDC: readyPayout?.amount ?? 0,
+    amountUSDC: effectiveAmount,
     currency: selected,
     verifiedHuman,
   });
 
+  const idleLabel = splitActive
+    ? "Confirm Smart Split"
+    : `Confirm Payout in ${selected.code}`;
+
   const stepLabel: Record<SettleStep, string> = {
-    idle: `Confirm Payout in ${selected.code}`,
+    idle: idleLabel,
     submitting: "Submitting transaction…",
     confirming: "Confirming on-chain…",
     done: "Settlement complete",
   };
 
   // ── On-chain payment via MiniKit.sendTransaction() ──────────────────
+  //
+  // Two paths:
+  //   - If the user is settling into wMXN, we run a REAL swap on the
+  //     Workline FX pool (USDC → wMXN). The user signs one bundled tx
+  //     containing approve(pool) + pool.swap(...).
+  //   - Otherwise (USDC, USD, etc.) we fall back to a tiny WLD self-
+  //     transfer so the demo always produces a real on-chain tx hash.
   async function handleOnchainSettle() {
     if (!readyPayout) return;
     setStep("submitting");
@@ -92,7 +174,34 @@ export default function SettlePage() {
     }
     if (!wallet) throw new Error("Wallet address not available. Sign in first.");
 
-    const { userOpHash } = await sendDemoTransfer(wallet);
+    const swapToWmxn = selected.code === "MXN" && effectiveAmount > 0;
+
+    let userOpHash: string;
+    if (swapToWmxn) {
+      // Guarantee the wallet holds enough USDC for the swap BEFORE we
+      // open the World App popup. The faucet route will top up via
+      // owner-mint() if the public faucet is on cooldown — this is
+      // what makes the popup show a real "Receive X wMXN" line item
+      // instead of the blank "Receive 0" the user was seeing.
+      try {
+        await requestSponsoredFaucet(wallet, {
+          minUsdc: effectiveAmount * 1.01, // 1% headroom for slippage
+        });
+      } catch (e) {
+        // Top-up is best-effort: if it fails (deployer out of gas,
+        // RPC hiccup) we still attempt the swap so the user gets a
+        // clear on-chain error rather than a silent abort.
+        console.warn("faucet top-up failed", e);
+      }
+      const swap = await sendUsdcToWmxnSwap({
+        recipient: wallet,
+        amountUsdc: effectiveAmount,
+      });
+      userOpHash = swap.userOpHash;
+    } else {
+      const tx = await sendDemoTransfer(wallet);
+      userOpHash = tx.userOpHash;
+    }
 
     setStep("confirming");
 
@@ -104,13 +213,30 @@ export default function SettlePage() {
       // Pay API may return final tx directly; use the transactionId
     }
 
+    const settlementId = `STL-${Date.now().toString(36).toUpperCase()}`;
+    const explorerUrl = explorerTxUrl(transactionHash);
+    const receipt = buildVerifiedIncomeReceipt({
+      settlementId,
+      payout: readyPayout,
+      receivedAmount: quote.receivedAmount,
+      receivedCurrency: selected.code,
+      txHash: transactionHash,
+      explorerUrl,
+      verifiedHuman,
+      splitBuckets,
+    });
+    const creditTeaser = buildCreditLineTeaser([
+      ...completedSettlements,
+      { sourceAmount: readyPayout.amount, verifiedHuman } as SettleResponse,
+    ]);
+
     const result: SettleResponse = {
-      settlementId: `STL-${Date.now().toString(36).toUpperCase()}`,
+      settlementId,
       status: "completed",
       txHash: transactionHash,
       userOpHash,
       onchain: true,
-      explorerUrl: explorerTxUrl(transactionHash),
+      explorerUrl,
       route: selected.code === "USDC"
         ? "USDC → World Chain"
         : `USDC → ${selected.code} (World Chain)`,
@@ -120,10 +246,15 @@ export default function SettlePage() {
       timestamp: new Date().toISOString(),
       fee: quote.fee,
       sourceAmount: readyPayout.amount,
+      convertedUsdc: effectiveAmount,
       payoutId: readyPayout.id,
       payoutPurpose: readyPayout.purpose,
       payoutSender: readyPayout.sender,
       verifiedHuman,
+      receipt,
+      smartSplitApplied,
+      splitBuckets,
+      creditTeaser,
     };
 
     setLastSettlement(result);
@@ -141,7 +272,7 @@ export default function SettlePage() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         payoutId: readyPayout.id,
-        amountUSDC: readyPayout.amount,
+        amountUSDC: effectiveAmount,
         selectedCurrency: selected.code,
         verifiedHuman,
       }),
@@ -150,7 +281,32 @@ export default function SettlePage() {
       const err = await res.json().catch(() => ({ error: "Settlement failed" }));
       throw new Error(err.error || "Settlement failed");
     }
-    const result: SettleResponse = await res.json();
+    const base: SettleResponse = await res.json();
+    const receipt = buildVerifiedIncomeReceipt({
+      settlementId: base.settlementId,
+      payout: readyPayout,
+      receivedAmount: base.receivedAmount,
+      receivedCurrency: base.selectedCurrency,
+      txHash: base.txHash,
+      explorerUrl: base.explorerUrl,
+      verifiedHuman,
+      splitBuckets,
+    });
+    const creditTeaser = buildCreditLineTeaser([
+      ...completedSettlements,
+      { sourceAmount: readyPayout.amount, verifiedHuman } as SettleResponse,
+    ]);
+    const result: SettleResponse = {
+      ...base,
+      // Override the API's sourceAmount so the receipt/success page
+      // shows the FULL payout, not just the converted leg.
+      sourceAmount: readyPayout.amount,
+      convertedUsdc: effectiveAmount,
+      receipt,
+      smartSplitApplied,
+      splitBuckets,
+      creditTeaser,
+    };
     setLastSettlement(result);
     appendSettlement(result);
     consumePayout(readyPayout.id);
@@ -222,6 +378,9 @@ export default function SettlePage() {
           </p>
         </motion.div>
 
+        {/* World Chat approval (settlement trigger) */}
+        {approval && <WorldChatApprovalCard approval={approval} />}
+
         {/* Amount hero */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -243,15 +402,73 @@ export default function SettlePage() {
           </p>
         </motion.div>
 
-        {/* AI suggestion */}
-        {smartSplit && (
-          <AiSuggestionBanner
-            suggestion={smartSplit}
-            onApply={(code) => {
-              const match = currencies.find((c) => c.code === code);
+        {/* AI Smart Split (live via OpenRouter, falls back to rule-based) */}
+        {(smartSplitLoading || smartSplit) && (
+          <SmartSplitCard
+            result={smartSplit}
+            loading={smartSplitLoading}
+            applied={smartSplitApplied}
+            onApply={() => {
+              if (!smartSplit) return;
+              const match = currencies.find(
+                (c) => c.code === smartSplit.localCurrency,
+              );
               if (match) setSelected(match);
+              setSmartSplitApplied(true);
             }}
           />
+        )}
+
+        {/* Split summary strip — explains exactly what will be settled */}
+        {splitActive && smartSplit && readyPayout && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-[14px] border border-[#3B3FE7]/20 bg-white p-3"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[#3B3FE7]">
+                You&apos;re settling
+              </p>
+              <button
+                type="button"
+                onClick={() => setSmartSplitApplied(false)}
+                className="text-[10px] font-bold text-[#9094A6] underline"
+              >
+                Undo split
+              </button>
+            </div>
+            <p className="mt-1.5 text-[12px] font-bold text-[#1B1F3B]">
+              ${smartSplit.localAmount.toLocaleString()} of $
+              {readyPayout.amount.toLocaleString()} into{" "}
+              {smartSplit.localCurrency}
+            </p>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              <Bucket
+                label="Spend"
+                amount={smartSplit.localAmount}
+                hint={smartSplit.localCurrency}
+                tone="indigo"
+                active
+              />
+              <Bucket
+                label="Save"
+                amount={smartSplit.stableAmount}
+                hint="USDC"
+                tone="green"
+              />
+              <Bucket
+                label="Reserve"
+                amount={smartSplit.reserveAmount}
+                hint="USDC"
+                tone="amber"
+              />
+            </div>
+            <p className="mt-2 text-[9px] text-[#9094A6]">
+              Only the spend bucket is converted now. Save + Reserve stay as
+              USDC in your wallet.
+            </p>
+          </motion.div>
         )}
 
         {/* Currency selector */}
@@ -321,7 +538,7 @@ export default function SettlePage() {
             Payout Summary
           </p>
           <SettlementQuoteCard
-            amount={readyPayout.amount}
+            amount={effectiveAmount}
             from="USDC"
             to={selected}
             verifiedHuman={verifiedHuman}
@@ -342,6 +559,37 @@ export default function SettlePage() {
           </p>
         )}
 
+        {/* Destination amount callout — visible right above the CTA so
+            the user knows EXACTLY what's about to land in their wallet,
+            even if the World App popup chrome is sparse. */}
+        {effectiveAmount > 0 && quote.receivedAmount > 0 && (
+          <div className="rounded-[16px] border border-[#3B3FE7]/15 bg-[#EEF0FF] px-4 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#3B3FE7]/80">
+              You will receive
+            </p>
+            <div className="mt-1 flex items-baseline justify-between gap-3">
+              <p className="text-2xl font-bold leading-none text-[#1B1F3B]">
+                {quote.receivedAmount.toLocaleString(undefined, {
+                  maximumFractionDigits: 2,
+                })}{" "}
+                <span className="text-base font-semibold text-[#1B1F3B]/70">
+                  {selected.code === "MXN" ? "wMXN" : selected.code}
+                </span>
+              </p>
+              <p className="text-[11px] font-medium text-[#1B1F3B]/60">
+                from ${effectiveAmount.toLocaleString()} USDC
+              </p>
+            </div>
+            {selected.code === "MXN" && inWorldApp && (
+              <p className="mt-2 text-[11px] leading-snug text-[#1B1F3B]/55">
+                World App will show this as the balance change after you
+                confirm — sign once to approve + swap on the Workline FX
+                pool.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* CTA */}
         <motion.button
           type="button"
@@ -354,5 +602,49 @@ export default function SettlePage() {
         </motion.button>
       </section>
     </AppShell>
+  );
+}
+
+type BucketTone = "indigo" | "green" | "amber";
+
+function Bucket({
+  label,
+  amount,
+  hint,
+  tone,
+  active = false,
+}: {
+  label: string;
+  amount: number;
+  hint: string;
+  tone: BucketTone;
+  active?: boolean;
+}) {
+  const bg =
+    tone === "indigo"
+      ? "bg-[#3B3FE7]/8"
+      : tone === "green"
+        ? "bg-[#22C55E]/10"
+        : "bg-[#F0C24A]/15";
+  const text =
+    tone === "indigo"
+      ? "text-[#3B3FE7]"
+      : tone === "green"
+        ? "text-[#22C55E]"
+        : "text-[#A07A1A]";
+  return (
+    <div
+      className={`rounded-[10px] p-2 text-left ${bg} ${active ? "ring-1 ring-[#3B3FE7]/40" : ""}`}
+    >
+      <p
+        className={`text-[8px] font-bold uppercase tracking-wider ${text}`}
+      >
+        {label}
+      </p>
+      <p className="mt-0.5 text-[12px] font-black text-[#1B1F3B]">
+        ${amount.toLocaleString()}
+      </p>
+      <p className="text-[8px] text-[#9094A6]">{hint}</p>
+    </div>
   );
 }
