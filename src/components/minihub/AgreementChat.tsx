@@ -17,9 +17,9 @@ type ChatMessage = {
   time: string;
 };
 
-const PEER_ADDRESS = "0xF04F747dB02e4478bEA2aE3045C40206382fb7D2";
+const PEER_ADDRESS = "0xc1fE03473776465Da67d7f357ADA5Ff3206bFBd9";
 const PEER_NAME = "unabrijed";
-const LOCAL_MSGS_KEY = "worklinefx:chat:msgs";
+const LOCAL_MSGS_KEY = "worklinefx:chat:msgs:v2";
 
 const AUTO_REPLIES = [
   "Got it, I'll review the deliverables today.",
@@ -209,7 +209,9 @@ export function AgreementChat({
                 <circle cx="6" cy="6" r="5" fill="#3B82F6" />
                 <path d="M4 6L5.5 7.5L8 4.5" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <span className="text-[10px] text-[#9094A6]">Verified human</span>
+              <span className="text-[10px] text-[#9094A6]">
+                Verified human · {agreement.title}
+              </span>
             </div>
           </div>
           <div className="grid h-8 w-8 place-items-center rounded-full bg-[#F0E6FF]">
@@ -224,7 +226,11 @@ export function AgreementChat({
               status === "xmtp" ? "bg-[#22C55E]" : status === "connecting" ? "bg-[#F59E0B] animate-pulse" : "bg-[#3B82F6]"
             }`} />
             <span className="text-[9px] text-[#9094A6]">
-              {status === "xmtp" ? "XMTP v3 · end-to-end encrypted" : status === "connecting" ? "Connecting to XMTP…" : "Secure local chat"}
+              {status === "xmtp"
+                ? "World Chat · end-to-end encrypted"
+                : status === "connecting"
+                  ? "Connecting to World Chat…"
+                  : "Secure local chat"}
             </span>
           </div>
           {myShort && (
@@ -258,10 +264,12 @@ export function AgreementChat({
           </svg>
           <p className="text-[11px] leading-relaxed text-[#1B1F3B]">
             {status === "xmtp"
-              ? `End-to-end encrypted via XMTP v3 (MLS). ${PEER_NAME} can reply via Converse or any XMTP app.`
+              ? `End-to-end encrypted on World Chat. ${PEER_NAME} can reply from any compatible app.`
               : `Messages are secured locally. Payments use a public blockchain.`}
           </p>
-          <p className="mt-1 text-[10px] font-bold text-[#1B1F3B]">Secured by XMTP</p>
+          <p className="mt-1 text-[10px] font-bold text-[#1B1F3B]">
+            World Chat, powered by XMTP
+          </p>
           <p className="mt-1 text-[8px] font-mono text-[#BCC0CE]">To: {peerShort}</p>
         </div>
 
@@ -274,7 +282,7 @@ export function AgreementChat({
         {status === "connecting" && messages.length === 0 && (
           <div className="flex flex-col items-center py-10">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#3B3FE7] border-t-transparent" />
-            <p className="mt-3 text-xs text-[#9094A6]">Connecting to XMTP network…</p>
+            <p className="mt-3 text-xs text-[#9094A6]">Connecting to World Chat…</p>
           </div>
         )}
 

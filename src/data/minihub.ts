@@ -9,6 +9,7 @@ import type {
   Pool,
   SettlementQuote,
   Stat,
+  WorldChatApproval,
 } from "@/lib/minihub-types";
 
 export const currencies: Currency[] = [
@@ -90,7 +91,7 @@ export const agreements: Agreement[] = [
 ];
 
 export const pools: Pool[] = [
-  { pair: "USDC / wMXN", tvl: "$1.2M", volume: "$340K", apy: "8.2%" },
+  { pair: "USDC / wMXN", tvl: "$5M", volume: "$340K", apy: "8.2%" },
   { pair: "USDC / wBRL", tvl: "$890K", volume: "$210K", apy: "11.5%" },
   { pair: "USDC / wINR", tvl: "$650K", volume: "$180K", apy: "9.8%" },
 ];
@@ -130,6 +131,31 @@ export const badges: Badge[] = [
   { label: "FX Pro", sub: "10 Swaps", emoji: "⚡", color: "#00ADB5" },
   { label: "Verified", sub: "World ID", emoji: "🛡️", color: "#2ECC71" },
 ];
+
+export const worldChatApprovals: WorldChatApproval[] = [
+  {
+    payoutId: "WL-2060",
+    clientName: "Acme Corp",
+    clientHandle: "acme.eth",
+    approvedAt: "Just now",
+    messagePreview: "Milestone 3 looks great — releasing $500 now.",
+    status: "approved",
+  },
+  {
+    payoutId: "WL-2051",
+    clientName: "TechFlow Inc",
+    clientHandle: "techflow",
+    approvedAt: "1d ago",
+    messagePreview: "API integration shipped. Approving $1,200 payout.",
+    status: "approved",
+  },
+];
+
+export function getWorldChatApprovalByPayoutId(
+  payoutId: string,
+): WorldChatApproval | null {
+  return worldChatApprovals.find((a) => a.payoutId === payoutId) ?? null;
+}
 
 export const payoutMix: PayoutMixItem[] = [
   { label: "USDC", amount: "$2,400", color: "#00ADB5", percent: 45 },
