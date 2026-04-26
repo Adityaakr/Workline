@@ -181,7 +181,9 @@ export default function SettlePage() {
 
     const swapToWmxn = selected.code === "MXN" && effectiveAmount > 0;
 
-    let userOpHash: string;
+    let userOpHash: string | undefined;
+    let directTxHash: `0x${string}` | undefined;
+    let sponsored = false;
     if (swapToWmxn) {
       // Guarantee the wallet holds enough USDC for the swap BEFORE we
       // open the World App popup. The faucet route will top up via
