@@ -28,7 +28,7 @@ export class MiniKitError extends Error {
   }
 }
 
-function describeMiniKitError(err: unknown, fallback: string): Error {
+function describeMiniKitError(err: unknown, fallback: string): MiniKitError {
   if (err && typeof err === "object") {
     const e = err as {
       message?: string;
@@ -52,11 +52,15 @@ function describeMiniKitError(err: unknown, fallback: string): Error {
                   ? "World App daily tx limit reached for this account."
                   : "";
       const detail = friendly ? ` — ${friendly}` : "";
-      return new Error(`${base} [${code}]${detail}`);
+      return new MiniKitError(
+        `${base} [${code}]${detail}`,
+        code,
+        e.details,
+      );
     }
-    return new Error(base);
+    return new MiniKitError(base);
   }
-  return new Error(fallback);
+  return new MiniKitError(fallback);
 }
 
 // ── World Chain mainnet token addresses ──────────────────────────────
