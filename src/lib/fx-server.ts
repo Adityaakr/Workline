@@ -13,6 +13,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import {
   ERC20_DEMO_ABI,
   FX_ADDRESSES,
+  FX_POOL_ABI,
   FX_RPC_URL,
 } from "./fx-contracts";
 import { fxPublicClient, worldChain } from "./fx-public-client";
