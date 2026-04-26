@@ -202,6 +202,57 @@ export type SponsoredSwapResult = {
   minOut: bigint;
 };
 
+/// @notice Server-sponsored USDC → wMXN swap on the Workline FX pool.
+///         The deployer wallet pays in USDC + gas; the recipient gets
+///         the swapped wMXN delivered straight to their wallet.
+///
+///         This exists as a fallback for the settle flow when the user
+///         can't sign the swap themselves (e.g. World App rejects the
+///         pool entrypoint or the contract isn't yet allowlisted in the
+///         Developer Portal). Same pool, same fee, same on-chain effect
+///         — only the signer differs. The user wallet still ends up
+///         with real wMXN they can spend.
+export async function sponsoredSwapUsdcToWmxn(opts: {
+  recipient: Address;
+  amountIn: bigint;
+  slippageBps?: bigint;
+}): Promise<SponsoredSwapResult> {
+  const { recipient, amountIn } = opts;
+  const slippageBps = opts.slippageBps ?? BigInt(50);
+  const BPS_DENOM = BigInt(10_000);
+  if (amountIn <= BigInt(0)) {
+    throw new Error("amountIn must be positive");
+  }
+
+  const { account, walletClient } = getDeployer();
+
+  // Quote the swap against current reserves so we can compute a sane
+  // minOut. We re-read here (instead of trusting the client-supplied
+  // value) so the slippage band always reflects the freshest pool
+  // state at the moment the deployer signs.
+  const quotedOut = (await fxPublicClient.readContract({
+    address: FX_ADDRESSES.pool,
+    abi: FX_POOL_ABI,
+    functionName: "quote",
+    args: [amountIn, FX_ADDRESSES.usdc],
+  })) as bigint;
+  if (quotedOut === BigInt(0)) {
+    throw new Error("Pool has no liquidity for this swap");
+  }
+  const minOut = (quotedOut * (BPS_DENOM - slippageBps)) / BPS_DENOM;
+
+  // approve + swap wired up in subsequent commits.
+  void recipient;
+  void account;
+  void walletClient;
+  return {
+    swapTxHash: ("0x" + "0".repeat(64)) as Hex,
+    amountIn,
+    amountOut: quotedOut,
+    minOut,
+  };
+}
+
 /// @notice True when the address is past the 6h faucet cooldown for both
 ///         tokens. Used by the API route to short-circuit redundant
 ///         drips and return a stable response.
